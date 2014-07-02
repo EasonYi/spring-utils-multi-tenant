@@ -52,18 +52,11 @@ public final class MultitenantCacheManager implements CacheManager {
 	
 	@Override
 	public Cache getCache(String name) {
-		logger.debug("Translating cache name for '{}'", name);
-		String translatedName = name;
-		String context = ContextHolder.getContext();
-		logger.debug("Multitenant context is '{}'", context);
-		if (context != null && !context.trim().isEmpty()) {
-			translatedName = translatedName + "." + context;
+		Cache cache = this.delegate.getCache(name);
+		if (cache != null) {
+			cache = new MultitenantCache(cache, this.contextRequired);
 		}
-		else if (this.contextRequired) {
-			throw new TargetLookupFailureException("Multitenant context is not set and is required");
-		}
-		logger.debug("Translated cache name is '{}'", translatedName);
-		return this.delegate.getCache(translatedName);
+		return cache;
 	}
 
 	@Override
