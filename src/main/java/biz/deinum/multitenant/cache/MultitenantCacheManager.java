@@ -11,13 +11,10 @@ import biz.deinum.multitenant.aop.target.TargetLookupFailureException;
 import biz.deinum.multitenant.core.ContextHolder;
 
 /**
- * A simple {@link CacheManager} implementation that provides a form of multi-tenancy by translating
- * each cache name requested by clients into a new cache name that is specific to the multi-tenant
- * context defined by {@link ContextHolder}.    
- * 
- * Cache names are translated as follows:  Given a cache name of 'cacheName' and multi-tenant
- * context of 'context', the translated cache name will be 'cacheName.context'.  
- * 
+ * A {@link CacheManager} implementation that supports multi-tenancy by wrapping around another
+ * {@link CacheManager} implementation, the delegate, and decorating caches returned by the delegate
+ * with {@link MultitenantCache}.        
+ *   
  * @author Joe Laudadio (Joe.Laudadio@AltegraHealth.com)
  *
  */
@@ -53,7 +50,12 @@ public final class MultitenantCacheManager implements CacheManager {
 	@Override
 	public Cache getCache(String name) {
 		Cache cache = this.delegate.getCache(name);
+		String tenantContext = getTenantContext();
+		if (this.contextRequired && tenantContext == null) {
+			throw new TargetLookupFailureException("Tenant context required but not available");
+		}
 		if (cache != null) {
+			logger.debug("Wrapped cache '{}' for tenant context '{}'", cache.getName(), tenantContext);
 			cache = new MultitenantCache(cache, this.contextRequired);
 		}
 		return cache;
@@ -66,6 +68,15 @@ public final class MultitenantCacheManager implements CacheManager {
 	
 	public boolean isContextRequired() {
 		return contextRequired;
+	}
+	
+	private String getTenantContext() {
+		String context = ContextHolder.getContext();
+		// normalize empty string/whitespace as null context
+		if (context != null && context.trim().isEmpty()) {
+			context = null;
+		}
+		return context;
 	}
 	
 	private final Logger logger = LoggerFactory.getLogger(MultitenantCacheManager.class);

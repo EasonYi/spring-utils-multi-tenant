@@ -12,7 +12,7 @@ import biz.deinum.multitenant.core.ContextHolder;
 /**
  * A {@link Cache} implementation that provides support for multi-tenancy by translating the lookup
  * keys into a tenant-context-specific key using {@link ContextHolder}.  The nuts and bolts of the
- * caching are the responsibiliyt of the delegate {@link Cache} implementation that this class
+ * caching are the responsibility of the delegate {@link Cache} implementation that this class
  * wraps.  This class only deals with translating the keys for the tenant context.
  * 
  * Whether or not null values are allowed is determined by the underlying {@link Cache} implementation.
