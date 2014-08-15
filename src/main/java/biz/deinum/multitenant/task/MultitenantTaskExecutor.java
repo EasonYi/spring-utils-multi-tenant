@@ -1,9 +1,13 @@
 package biz.deinum.multitenant.task;
 
+import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 
 import biz.deinum.multitenant.core.ContextHolder;
@@ -17,52 +21,58 @@ import biz.deinum.multitenant.core.ContextHolder;
  * @author Joe Laudadio <Joe.Laudadio@AltegraHealth.com>
  *
  */
-public class MultitenantTaskExecutor implements TaskExecutor {
+public class MultitenantTaskExecutor implements AsyncTaskExecutor {
 
-	private final TaskExecutor delegateTaskExecutor;
+	private final AsyncTaskExecutor delegate;
 	
-	public MultitenantTaskExecutor(TaskExecutor delegate) {
+	public MultitenantTaskExecutor(AsyncTaskExecutor delegate) {
 		Objects.requireNonNull(delegate);
-		this.delegateTaskExecutor = delegate;
+		this.delegate = delegate;
 	}
 	
 	@Override
 	public void execute(Runnable task) {
 		Objects.requireNonNull(task);
-		String currentContext = ContextHolder.getContext();
-		logger.debug("current context = {}", currentContext);
-		Runnable r = new MultitenantRunnable(task, currentContext);
-		this.delegateTaskExecutor.execute(r);
+		Runnable r = wrap(task);
+		this.delegate.execute(r);
 	}
 
-	private static class MultitenantRunnable implements Runnable {
+	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-		private final Runnable task;
-		private final String runAsTenantContext;
-		private final Logger logger = LoggerFactory.getLogger(getClass());
-		public MultitenantRunnable(Runnable task, String runAsTenantContext) {
-			this.task = task;
-			this.runAsTenantContext = runAsTenantContext;
-		}
-		
-		@Override
-		public void run() {
-			String originalContext = ContextHolder.getContext();
-			logger.debug("Starting tenant context: {}", originalContext);
-			try {
-				logger.debug("Switching tenant context to run-as context: {}", this.runAsTenantContext);
-				ContextHolder.setContext(this.runAsTenantContext);
-				logger.debug("Executing task");
-				this.task.run();
-				logger.debug("Task finished");
-			}
-			finally {
-				ContextHolder.setContext(originalContext);
-				logger.debug("Restored original tenant context: {}", originalContext);
-			}
-		}
-		
+	@Override
+	public void execute(Runnable task, long startTimeout) {
+		Objects.requireNonNull(task);
+		Runnable r = wrap(task);
+		this.delegate.execute(r, startTimeout);
+	}
+
+	@Override
+	public Future<?> submit(Runnable task) {
+		Objects.requireNonNull(task);
+		Runnable r = wrap(task);
+		return this.delegate.submit(r);
+	}
+
+	@Override
+	public <T> Future<T> submit(Callable<T> task) {
+		Objects.requireNonNull(task);
+		Callable<T> c = wrap(task);
+		return this.delegate.submit(c);
 	}
 	
-	private final Logger logger = LoggerFactory.getLogger(getClass());
+	private Runnable wrap(Runnable task) {
+		TaskInterceptor interceptor = createInterceptor();
+		return new InterceptableRunnable(task, Collections.singletonList(interceptor));
+	}
+	
+	private <V> Callable<V> wrap(Callable<V> task) {		
+		TaskInterceptor interceptor = createInterceptor();
+		return new InterceptableCallable(task, Collections.singletonList(interceptor));
+	}
+	
+	private MultitenantContextTaskInterceptor createInterceptor() {
+		String currentContext = ContextHolder.getContext();
+		logger.debug("current context = {}", currentContext);
+		return new MultitenantContextTaskInterceptor(currentContext);		
+	}
 }
