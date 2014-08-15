@@ -6,7 +6,7 @@
 
 	<groupId>biz.deinum</groupId>
 	<artifactId>spring-utils-multi-tenant</artifactId>
-	<version>1.6-SNAPSHOT</version>
+	<version>1.6</version>
 	<packaging>jar</packaging>
 
 	<properties>
