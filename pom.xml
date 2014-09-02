@@ -6,7 +6,6 @@
 
 	<groupId>biz.deinum</groupId>
 	<artifactId>spring-utils-multi-tenant</artifactId>
-	<version>1.7-hibdep-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<properties>
@@ -146,4 +145,5 @@
 			<url>http://nexus.dcasolutions.com:8081/nexus/content/repositories/snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
+	<version>1.7</version>
 </project>
